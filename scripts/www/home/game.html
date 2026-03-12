@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="x5-fullscreen" content="true">
+    <meta name="x5-orientation" content="portrait">
+    <meta name="x5-video-player-type" content="h5-page">
+    <title>3D女友模拟器 · 纯净漂浮版</title>
+    <style>
+        :root {
+            --control-top: clamp(20px, 5vh, 60px);
+            --control-gap: clamp(8px, 2vw, 12px);
+            --button-height: clamp(40px, 10vw, 50px);
+            --button-radius: clamp(20px, 5vw, 25px);
+            --button-font: clamp(14px, 3.5vw, 16px);
+            --side-margin: clamp(12px, 3vw, 20px);
+            --primary-color: #fd79a8;
+            --secondary-color: #74b9ff;
+            --accent-color: #00cec9;
+            --warning-color: #ff6b6b;
+            --support-color: #6c5ce7;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        body {
+            overflow: hidden;
+            touch-action: none;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            color: #fff;
+            height: 100vh;
+            position: relative;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* ========== 保留完整的加载动画 ========== */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #121212, #1e293b);
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.5s ease-out;
+            overflow: hidden;
+        }
+        .loading-particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        .loading-logo {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            margin-bottom: 40px;
+            animation: pulse 2s infinite ease-in-out;
+        }
+        .loading-logo h1 {
+            font-size: clamp(2.5rem, 8vw, 4rem);
+            font-weight: 900;
+            margin: 0;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 0 10px rgba(253, 121, 168, 0.5), 0 0 20px rgba(116, 185, 255, 0.3);
+        }
+        .loading-logo span {
+            display: block;
+            font-size: clamp(1rem, 3vw, 1.5rem);
+            margin-top: 10px;
+            color: var(--accent-color);
+            font-weight: 400;
+            text-shadow: 0 0 5px rgba(0, 206, 201, 0.5);
+        }
+        .loading-progress {
+            position: relative;
+            z-index: 2;
+            width: 80%;
+            max-width: 400px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        .progress-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            border-radius: 4px;
+            transition: width 0.3s ease-out;
+            box-shadow: 0 0 15px rgba(253, 121, 168, 0.5);
+            animation: progress 3s forwards ease-out;
+        }
+        .loading-text {
+            position: relative;
+            z-index: 2;
+            font-size: clamp(1rem, 3vw, 1.2rem);
+            color: #fff;
+            text-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+            animation: fadeIn 1s forwards;
+            opacity: 0;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        @keyframes progress {
+            0% { width: 0%; }
+            100% { width: 100%; }
+        }
+        @keyframes fadeIn {
+            0% { opacity: 0; transform: translateY(20px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        /* 加载粒子动画 */
+        @keyframes particleMove {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            100% { transform: translate(var(--x), var(--y)) rotate(var(--rotate)); }
+        }
+
+        /* 底部按钮容器 */
+        .bottom-buttons-container {
+            position: fixed;
+            bottom: 30px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            z-index: 9996;
+            padding: 0 var(--side-margin);
+            pointer-events: none; /* 让容器不拦截点击，按钮自己处理 */
+        }
+        .bottom-btn {
+            width: 90%;
+            max-width: 420px;
+            height: 60px;
+            border-radius: 20px;
+            font-size: 18px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            border: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+            text-decoration: none;
+            position: relative;
+            z-index: 1;
+            padding: 0 20px;
+            text-align: center;
+            letter-spacing: 0.5px;
+            pointer-events: auto;
+            /* 漂浮动画 */
+            animation: float 3s infinite ease-in-out;
+        }
+        /* 不同按钮延迟不同，错落有致 */
+        .refund-btn {
+            background: linear-gradient(135deg, #ff6b6b, #ff3838);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            animation-delay: 0s;
+        }
+        .support-btn {
+            background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            animation-delay: 0.4s;
+        }
+        /* 通用漂浮动画 */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+            100% { transform: translateY(0px); }
+        }
+        .bottom-btn:hover {
+            transform: translateY(-6px) scale(1.02);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5);
+            animation: none; /* 悬停时暂停漂浮，避免冲突 */
+        }
+
+        /* 右上角按钮组 */
+        .right-controls {
+            display: flex;
+            flex-direction: column;
+            gap: var(--control-gap);
+        }
+        /* 所有右上角按钮统一漂浮动画 */
+        .action-button, .additional-button {
+            height: var(--button-height);
+            border-radius: var(--button-radius);
+            padding: 0 20px;
+            font-size: var(--button-font);
+            cursor: pointer;
+            backdrop-filter: blur(12px);
+            color: white;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255,255,255,0.15) inset;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 110px;
+            font-weight: 700;
+            border: none;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+            letter-spacing: 0.5px;
+            /* 漂浮动画 */
+            animation: floatButton 3s infinite ease-in-out;
+        }
+        /* 为每个按钮设置不同的延迟，更生动 */
+        #customLinkBtn {
+            background: linear-gradient(145deg, #00b894, #008b74);
+            animation-delay: 0s;
+        }
+        #otakuModeButton {
+            background: linear-gradient(145deg, #fd79a8, #d63031);
+            animation-delay: 0.2s;
+        }
+        #standButton {
+            background: linear-gradient(145deg, #e84393, #aa4069);
+            animation-delay: 0.4s;
+        }
+        /* 新增宝藏资源按钮，延迟0.6s */
+        #treasureBtn {
+            background: linear-gradient(145deg, #f39c12, #e67e22);
+            animation-delay: 0.6s;
+        }
+        @keyframes floatButton {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-6px); }
+            100% { transform: translateY(0px); }
+        }
+        .action-button:hover, .additional-button:hover {
+            transform: scale(1.05) translateY(-4px);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
+            animation: none; /* 悬停暂停漂浮 */
+        }
+
+        /* 返回按钮不漂浮，保持稳重 */
+        #backButton {
+            background: linear-gradient(135deg, #4a69bd, #1e3799);
+            border: 1px solid rgba(255,255,255,0.3);
+            animation: none;
+        }
+
+        /* 视频容器 */
+        .x5-video-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+        video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.8;
+            transform: translateZ(0);
+        }
+
+        .top-controls {
+            position: fixed;
+            top: var(--control-top);
+            left: 0;
+            width: 100%;
+            padding: 0 var(--side-margin);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            z-index: 9997;
+        }
+
+        /* 增强弹窗 (保留之前的优化) */
+        .enhanced-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(20, 30, 50, 0.98);
+            backdrop-filter: blur(20px);
+            padding: 30px 35px;
+            border-radius: 32px;
+            z-index: 10000;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+            text-align: center;
+            max-width: 480px;
+            width: 85vw;
+            color: #fff;
+        }
+        .enhanced-modal h3 {
+            font-size: 28px;
+            margin-bottom: 20px;
+            color: var(--primary-color);
+            text-shadow: 0 2px 10px rgba(253,121,168,0.5);
+            font-weight: 800;
+        }
+        .modal-content-text {
+            font-size: 20px;
+            line-height: 1.6;
+            margin: 20px 0 15px;
+            color: #f0f0f0;
+        }
+        .modal-image {
+            max-width: 100%;
+            max-height: 240px;
+            border-radius: 18px;
+            margin: 15px 0;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            border: 2px solid rgba(255,255,255,0.2);
+        }
+        .modal-link-btn {
+            display: inline-block;
+            margin: 20px 0 15px;
+            padding: 16px 28px;
+            background: linear-gradient(145deg, #ffb347, #ff8c00);
+            color: white;
+            font-size: 22px;
+            font-weight: 800;
+            border-radius: 60px;
+            text-decoration: none;
+            box-shadow: 0 8px 0 #b85e00, 0 15px 30px rgba(255,140,0,0.5);
+            transition: all 0.15s ease;
+            border: 2px solid rgba(255,255,255,0.3);
+            letter-spacing: 1px;
+            min-width: 220px;
+        }
+        .modal-link-btn:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 0 #b85e00, 0 25px 40px rgba(255,140,0,0.7);
+        }
+        .modal-link-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 4px 0 #b85e00, 0 10px 20px rgba(255,140,0,0.5);
+        }
+        .close-btn {
+            position: absolute;
+            top: 18px;
+            right: 18px;
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.15);
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .close-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: rotate(90deg) scale(1.1);
+        }
+        .modal-close-footer button {
+            padding: 12px 40px;
+            background: #4a69bd;
+            border: none;
+            border-radius: 40px;
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #1e3799;
+            transition: 0.1s ease;
+            margin-top: 15px;
+        }
+        .modal-close-footer button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 0 #1e3799;
+        }
+        .modal-close-footer button:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #1e3799;
+        }
+
+        .play-hint {
+            position: fixed;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: #fff;
+            padding: 10px 25px;
+            border-radius: 40px;
+            font-size: 16px;
+            z-index: 9996;
+            animation: fadeHint 4s forwards;
+            opacity: 0;
+            pointer-events: none;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        @keyframes fadeHint {
+            0% { opacity:0; transform:translateX(-50%) translateY(10px); }
+            20% { opacity:1; transform:translateX(-50%) translateY(0); }
+            80% { opacity:1; transform:translateX(-50%) translateY(0); }
+            100% { opacity:0; transform:translateX(-50%) translateY(-10px); }
+        }
+        .video-error {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #e74c3c;
+            padding: 20px 30px;
+            border-radius: 30px;
+            z-index: 9999;
+            display: none;
+        }
+        .android-status-bar-padding {
+            height: env(safe-area-inset-top);
+            background: transparent;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 99999;
+        }
+        /* 自定义提示（临时） */
+        .custom-alert {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(15,23,42,0.95);
+            color: #fff;
+            padding: 20px 35px;
+            border-radius: 18px;
+            font-size: 18px;
+            backdrop-filter: blur(15px);
+            z-index: 9999;
+            display: none;
+            border: 1px solid rgba(255,255,255,0.1);
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="android-status-bar-padding"></div>
+
+    <!-- 加载动画界面 (完整保留) -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loading-particles" id="loadingParticles"></div>
+        <div class="loading-logo">
+            <h1>3D女友模拟器</h1>
+            <span>正在加载游戏资源...</span>
+        </div>
+        <div class="loading-progress">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <div class="loading-text" id="loadingText">初始化游戏引擎</div>
+    </div>
+
+    <div class="play-hint" id="playHint">视频加载完成，点击任意位置开始</div>
+
+    <!-- 底部按钮 (无星星装饰，只有漂浮动画) -->
+    <div class="bottom-buttons-container" id="bottomButtons">
+        <a class="bottom-btn refund-btn" id="refundBtn" href="javascript:void(0);">
+            <span class="btn-text">游戏内容不满意？点我申请退款</span>
+        </a>
+        <a class="bottom-btn support-btn" id="supportBtn" href="javascript:void(0);">
+            <span class="btn-text">有问题？点我联系人工客服</span>
+        </a>
+    </div>
+
+    <!-- 视频容器 -->
+    <div class="x5-video-container">
+        <video id="bgVideo" autoplay playsinline loop muted x5-playsinline x5-video-player-type="h5" webkit-playsinline>
+            您的浏览器不支持视频标签。
+        </video>
+        <div class="video-error" id="videoError">视频加载失败，请检查网络连接</div>
+    </div>
+
+    <div class="top-controls">
+        <button id="backButton" class="action-button">返回</button>
+        <div class="right-controls">
+            <button id="customLinkBtn" class="action-button">开启自由模式</button>
+            <button id="otakuModeButton" class="additional-button">女主艳舞</button>
+            <button id="standButton" class="additional-button">真实触摸</button>
+            <!-- 新增宝藏资源按钮 -->
+            <button id="treasureBtn" class="additional-button">宝藏资源</button>
+        </div>
+    </div>
+
+    <!-- 增强弹窗 -->
+    <div id="genericModal" class="enhanced-modal">
+        <div class="close-btn" onclick="document.getElementById('genericModal').style.display='none'">&times;</div>
+        <h3 id="genericModalTitle">提示</h3>
+        <div id="genericModalContent" class="modal-content-text"></div>
+        <img id="genericModalImage" class="modal-image" src="" style="display:none;">
+        <a id="genericModalLink" href="#" target="_blank" class="modal-link-btn" style="display:none;">点击跳转教程链接</a>
+        <div class="modal-close-footer">
+            <button onclick="document.getElementById('genericModal').style.display='none'">关闭</button>
+        </div>
+    </div>
+
+    <!-- 临时提示框 -->
+    <div class="custom-alert" id="customAlert"></div>
+
+    <script>
+        // 全局变量
+        let isVideoMode = false;
+        let currentCharacter = 'yae';
+
+        // 视频源
+        const videoSources = {
+            yae: { name: "八重仙子", default: "AA/八重神子/背景.mp4", otaku: "AA/八重神子/艳舞.mp4", stand: "AA/八重神子/触摸.mp4" },
+            tsunade: { name: "纲手", default: "AA/纲手/背景.mp4", otaku: "AA/纲手/艳舞.mp4", stand: "AA/纲手/触摸.mp4" },
+            lu_xue_qi: { name: "陆雪琪", default: "AA/陆雪琪/背景.mp4", otaku: "AA/陆雪琪/艳舞.mp4", stand: "AA/陆雪琪/触摸.mp4" },
+            shen_he: { name: "申鹤", default: "AA/申鹤/背景.mp4", otaku: "AA/申鹤/艳舞.mp4", stand: "AA/申鹤/触摸.mp4" },
+            sheng_cai_er: { name: "圣采儿", default: "AA/圣采儿/背景.mp4", otaku: "AA/圣采儿/艳舞.mp4", stand: "AA/圣采儿/触摸.mp4" },
+            xiao_yi_xian: { name: "小医仙", default: "AA/小医仙/背景.mp4", otaku: "AA/小医仙/艳舞.mp4", stand: "AA/小医仙/触摸.mp4" },
+            yun_yun: { name: "云韵", default: "AA/云韵/背景.mp4", otaku: "AA/云韵/艳舞.mp4", stand: "AA/云韵/触摸.mp4" },
+            ya_fei: { name: "雅菲", default: "AA/雅菲/背景.mp4", otaku: "AA/雅菲/艳舞.mp4", stand: "AA/雅菲/触摸.mp4" }
+        };
+
+        // 从URL获取角色
+        function getCharacterFromURL() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const character = urlParams.get('character');
+            if (character && videoSources[character]) return character;
+            const stored = localStorage.getItem('selectedCharacter');
+            if (stored && videoSources[stored]) return stored;
+            return 'yae';
+        }
+
+        function saveCharacterSelection(character) {
+            localStorage.setItem('selectedCharacter', character);
+        }
+
+        function toggleInterface(show) {
+            const rightControls = document.querySelector('.right-controls');
+            if (rightControls) rightControls.style.display = show ? 'flex' : 'none';
+        }
+
+        function toggleBottomButtons(show) {
+            const container = document.getElementById('bottomButtons');
+            if (container) container.style.display = show ? 'flex' : 'none';
+        }
+
+        function loadVideo(source) {
+            const video = document.getElementById('bgVideo');
+            const videoError = document.getElementById('videoError');
+            const isX5Browser = /MQQBrowser|QQ/.test(navigator.userAgent) && /TBS/.test(navigator.userAgent);
+            video.src = source;
+            video.load();
+            video.onerror = () => {
+                videoError.style.display = 'block';
+                setTimeout(() => videoError.style.display = 'none', 3000);
+            };
+            video.muted = true;
+            if (isX5Browser) {
+                video.setAttribute('x5-video-player-type', 'h5');
+                video.setAttribute('x5-video-player-fullscreen', 'true');
+            }
+            video.play().catch(() => {
+                document.getElementById('playHint').style.display = 'block';
+                setTimeout(() => document.getElementById('playHint').style.display = 'none', 4000);
+            });
+        }
+
+        function handleBackAction() {
+            if (isVideoMode) {
+                toggleInterface(true);
+                toggleBottomButtons(true);
+                loadVideo(videoSources[currentCharacter].default);
+                isVideoMode = false;
+            } else {
+                // 返回上一层（历史记录）
+                window.history.back();
+            }
+        }
+
+        // 加载动画粒子 (保留原有)
+        function createLoadingParticles() {
+            const container = document.getElementById('loadingParticles');
+            if (!container) return;
+            for (let i = 0; i < 50; i++) {
+                const p = document.createElement('div');
+                const size = Math.random() * 3 + 1;
+                p.style.position = 'absolute';
+                p.style.width = size + 'px';
+                p.style.height = size + 'px';
+                p.style.background = `rgba(253, 121, 168, ${Math.random() * 0.5 + 0.2})`;
+                p.style.borderRadius = '50%';
+                p.style.left = Math.random() * 100 + '%';
+                p.style.top = Math.random() * 100 + '%';
+                p.style.boxShadow = `0 0 ${size * 2}px rgba(253,121,168,0.5)`;
+                const x = (Math.random() - 0.5) * 100;
+                const y = (Math.random() - 0.5) * 100;
+                const rotate = Math.random() * 360;
+                p.style.animation = `particleMove ${Math.random() * 8 + 5}s ease-in-out infinite`;
+                p.style.setProperty('--x', x + 'px');
+                p.style.setProperty('--y', y + 'px');
+                p.style.setProperty('--rotate', rotate + 'deg');
+                container.appendChild(p);
+            }
+        }
+
+        function showLoadingAnimation() {
+            const loadingScreen = document.getElementById('loadingScreen');
+            const progressBar = document.getElementById('progressBar');
+            const loadingText = document.getElementById('loadingText');
+            loadingScreen.style.display = 'flex';
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 5;
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        loadingScreen.style.opacity = '0';
+                        setTimeout(() => loadingScreen.style.display = 'none', 500);
+                    }, 500);
+                }
+                progressBar.style.width = progress + '%';
+                if (progress < 25) loadingText.textContent = "正在初始化游戏引擎";
+                else if (progress < 50) loadingText.textContent = "加载3D模型资源";
+                else if (progress < 75) loadingText.textContent = "初始化物理引擎";
+                else if (progress < 100) loadingText.textContent = "加载音效资源";
+                else loadingText.textContent = "游戏加载完成!";
+            }, 80);
+        }
+
+        // 增强弹窗
+        function showEnhancedModal(title, content, imageSrc, linkUrl) {
+            const modal = document.getElementById('genericModal');
+            document.getElementById('genericModalTitle').textContent = title || '提示';
+            document.getElementById('genericModalContent').innerHTML = content || '';
+            const img = document.getElementById('genericModalImage');
+            const link = document.getElementById('genericModalLink');
+            if (imageSrc) {
+                img.src = imageSrc;
+                img.style.display = 'block';
+            } else img.style.display = 'none';
+            if (linkUrl) {
+                link.href = linkUrl;
+                link.style.display = 'inline-block';
+            } else link.style.display = 'none';
+            modal.style.display = 'block';
+        }
+
+        function showCustomAlert(msg) {
+            const alertBox = document.getElementById('customAlert');
+            alertBox.textContent = msg;
+            alertBox.style.display = 'block';
+            setTimeout(() => alertBox.style.display = 'none', 3000);
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            createLoadingParticles();
+            showLoadingAnimation();
+
+            currentCharacter = getCharacterFromURL();
+            saveCharacterSelection(currentCharacter);
+
+            // 底部按钮始终可见（无激活限制）
+            toggleBottomButtons(true);
+
+            document.getElementById('backButton').addEventListener('click', handleBackAction);
+
+            // 右上角按钮
+            document.getElementById('otakuModeButton').addEventListener('click', () => {
+                isVideoMode = true;
+                toggleInterface(false);
+                toggleBottomButtons(false);
+                loadVideo(videoSources[currentCharacter].otaku);
+            });
+
+            document.getElementById('standButton').addEventListener('click', () => {
+                isVideoMode = true;
+                toggleInterface(false);
+                toggleBottomButtons(false);
+                loadVideo(videoSources[currentCharacter].stand);
+            });
+
+            document.getElementById('customLinkBtn').addEventListener('click', () => {
+                showEnhancedModal('自由模式教程',
+                    '自由模式电脑游戏开启教程<br>教程在视频简介里面',
+                    null,
+                    'https://www.bilibili.com/video/BV12t421t71B/?share_source=copy_web&vd_source=ff12f3eb7032b3f3644c91c64d37e588');
+            });
+
+            // 新增宝藏资源按钮：直接打开链接
+            document.getElementById('treasureBtn').addEventListener('click', () => {
+                window.open('https://pan.quark.cn/s/5c0763bef572', '_blank');
+            });
+
+            // 退款按钮
+            document.getElementById('refundBtn').addEventListener('click', (e) => {
+                e.preventDefault();
+                showEnhancedModal('申请退款',
+                    '如对游戏不满意或无法使用，可用微信扫码下方二维码申请退款',
+                    'tuikuan.jpg',
+                    null);
+            });
+
+            // 客服按钮
+            document.getElementById('supportBtn').addEventListener('click', (e) => {
+                e.preventDefault();
+                showEnhancedModal('客服联系方式', '本网站唯一客服QQ：3173405776', null, null);
+            });
+
+            // 默认视频
+            loadVideo(videoSources[currentCharacter].default);
+
+            // 全局点击尝试取消静音
+            document.body.addEventListener('click', function() {
+                const video = document.getElementById('bgVideo');
+                if (video.muted) {
+                    video.muted = false;
+                    video.volume = 0.5;
+                    video.play().catch(() => {});
+                }
+            });
+
+            // 安卓触摸反馈
+            if (/Android/i.test(navigator.userAgent)) {
+                document.querySelectorAll('button, .bottom-btn').forEach(btn => {
+                    btn.addEventListener('touchstart', () => btn.style.transform = 'scale(0.96)');
+                    btn.addEventListener('touchend', () => btn.style.transform = '');
+                });
+            }
+        });
+
+        // 物理返回键
+        document.addEventListener('backbutton', handleBackAction, false);
+    </script>
+</body>
+</html>
