@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>选择你的角色</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#00e6f6',
+                        secondary: '#ad4bff',
+                        accent: '#ff6bff',
+                        dark: '#0a0a0a',
+                        darker: '#050505',
+                        light: '#f0f0f0',
+                    },
+                    fontFamily: {
+                        sans: ['Helvetica Neue', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .text-gradient {
+                background-clip: text;
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+            }
+            .bg-glass {
+                background: rgba(255, 255, 255, 0.05);
+                backdrop-filter: blur(12px);
+            }
+            .card-hover {
+                transition: all 0.3s ease;
+            }
+            .card-hover:hover {
+                transform: translateY(-8px);
+                box-shadow: 0 15px 30px rgba(0, 230, 246, 0.2);
+            }
+        }
+    </style>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+            color: #fff;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* 加载动画 */
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #00e6f6;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        /* 卡片悬停效果 */
+        .scene-card {
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            border-radius: 16px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+        }
+
+        .scene-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            transition: all 0.6s ease;
+        }
+
+        .scene-card:hover::before {
+            left: 100%;
+        }
+
+        .scene-card:hover img {
+            transform: scale(1.08);
+        }
+
+        .card-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+            opacity: 0.7;
+            transition: opacity 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 20px;
+        }
+
+        /* 波纹效果 */
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            transform: scale(0);
+            animation: ripple 0.6s linear;
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        @keyframes ripple {
+            to {
+                transform: scale(2.5);
+                opacity: 0;
+            }
+        }
+        
+        /* 服务器位置指示器 */
+        .server-indicator {
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            background: rgba(0, 230, 246, 0.1);
+            border: 1px solid rgba(0, 230, 246, 0.3);
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            color: #00e6f6;
+            z-index: 50;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        
+        /* 九宫格布局 */
+        .scene-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        /* 标题动画 */
+        @keyframes title-glow {
+            0%, 100% {
+                text-shadow: 0 0 10px rgba(0, 230, 246, 0.5);
+            }
+            50% {
+                text-shadow: 0 0 20px rgba(0, 230, 246, 0.8), 
+                             0 0 30px rgba(173, 75, 255, 0.6);
+            }
+        }
+        
+        .glowing-title {
+            animation: title-glow 3s infinite ease-in-out;
+        }
+        
+        @keyframes spin {
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 弹窗样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            z-index: 99999;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .modal-content {
+            background: rgba(20, 20, 30, 0.95);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 24px;
+            padding: 30px 40px;
+            max-width: 400px;
+            width: 80%;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        }
+        .modal-content p {
+            font-size: 1.2rem;
+            margin: 20px 0;
+            color: #fff;
+            word-break: break-word;
+        }
+        .modal-close {
+            background: linear-gradient(135deg, #00e6f6, #ad4bff);
+            border: none;
+            color: white;
+            padding: 10px 30px;
+            border-radius: 30px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0,230,246,0.3);
+        }
+        .modal-close:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(0,230,246,0.5);
+        }
+    </style>
+</head>
+
+<body class="bg-dark">
+    <div id="loading">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- 标题区域 -->
+    <header class="fixed top-0 left-0 w-full z-50 pt-4 pb-2 px-4">
+        <div class="bg-glass rounded-xl border border-white/10 p-3">
+            <h1 class="text-[clamp(1.5rem,5vw,2.5rem)] font-bold text-center text-gradient bg-gradient-to-r from-primary via-secondary to-accent glowing-title">
+                3D国漫女友
+            </h1>
+        </div>
+    </header>
+
+    <!-- 主内容区域 -->
+    <main class="pt-24 pb-20 px-4">
+        <!-- 人工客服按钮 - 改为弹窗 -->
+        <div class="fixed bottom-4 right-4 z-50">
+            <button onclick="showModal()" class="bg-gradient-to-r from-primary to-secondary text-white font-bold py-3 px-6 rounded-full shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 transition-all duration-300 flex items-center gap-2">
+                <i class="fa fa-headphones"></i>
+                <span>人工客服</span>
+            </button>
+        </div>
+        
+        <!-- 场景选择区域 - 九宫格布局 -->
+        <section class="mt-8">
+            <h2 class="text-xl font-bold mb-6 text-center text-gradient bg-gradient-to-r from-primary to-accent">选择你的女友</h2>
+            <div class="scene-grid">
+
+                <!-- 八重神子 -->
+               <a href="game.html?character=yae" class="scene-card group rounded-xl overflow-hidden shadow-lg relative card-hover">
+                    <div class="aspect-square w-full">
+                        <img src="AA/八重神子/封面.jpg" alt="八重神子" class="w-full h-full object-cover transition-transform duration-500 ease-in-out">
+                        <div class="card-overlay">
+                            <h3 class="text-white font-bold text-lg text-center">八重神子</h3>
+                            <p class="text-center text-sm opacity-80 mt-1">即刻进入</p>
+                        </div>
+                    </div>
+                </a>
+
+                <!-- 纲手 -->
+                <a href="game.html?character=tsunade" class="scene-card group rounded-xl overflow-hidden shadow-lg relative card-hover">
+                    <div class="aspect-square w-full">
+                        <img src="AA/纲手/封面.jpg" alt="纲手" class="w-full h-full object-cover transition-transform duration-500 ease-in-out">
+                        <div class="card-overlay">
+                            <h3 class="text-white font-bold text-lg text-center">纲手</h3>
+                            <p class="text-center text-sm opacity-80 mt-1">即刻进入</p>
+                        </div>
+                    </div>
+                </a>
+
+                <!-- 陆雪琪 -->
+                <a href="game.html?character=lu_xue_qi" class="scene-card group rounded-xl overflow-hidden shadow-lg relative card-hover">
+                    <div class="aspect-square w-full">
+                        <img src="AA/陆雪琪/封面.jpg" alt="陆雪琪" class="w-full h-full object-cover transition-transform duration-500 ease-in-out">
+                        <div class="card-overlay">
+                            <h3 class="text-white font-bold text-lg text-center">陆雪琪</h3>
+                            <p class="text-center text-sm opacity-80 mt-1">即刻进入</p>
+                        </div>
+                    </div>
+                </a>
+
+                <!-- 申鹤 -->
+                <a href="game.html?character=shen_he" class="scene-card group rounded-xl overflow-hidden shadow-lg relative card-hover">
+                    <div class="aspect-square w-full">
+                        <img src="AA/申鹤/封面.jpg" alt="申鹤" class="w-full h-full object-cover transition-transform duration-500 ease-in-out">
+                        <div class="card-overlay">
+                            <h3 class="text-white font-bold text-lg text-center">申鹤</h3>
+                            <p class="text-center text-sm opacity-80 mt-1">即刻进入</p>
+                        </div>
+                    </div>
+                </a>
+
+                <!-- 圣采儿 -->
+                <a href="game.html?character=sheng_cai_er" class="scene-card group rounded-xl overflow-hidden shadow-lg relative card-hover">
+                    <div class="aspect-square w-full">
+                        <img src="AA/圣采儿/封面.jpg" alt="圣采儿" class="w-full h-full object-cover transition-transform duration-500 ease-in-out">
+                        <div class="card-overlay">
+                            <h3 class="text-white font-bold text-lg text-center">圣采儿</h3>
+                            <p class="text-center text-sm opacity-80 mt-1">即刻进入</p>
+                        </div>
+                    </div>
+                </a>
+
+                <!-- 小医仙 -->
+                <a href="game.html?character=xiao_yi_xian" class="scene-card group rounded-xl overflow-hidden shadow-lg relative card-hover">
+                    <div class="aspect-square w-full">
+                        <img src="AA/小医仙/封面.jpg" alt="小医仙" class="w-full h-full object-cover transition-transform duration-500 ease-in-out">
+                        <div class="card-overlay">
+                            <h3 class="text-white font-bold text-lg text-center">小医仙</h3>
+                            <p class="text-center text-sm opacity-80 mt-1">即刻进入</p>
+                        </div>
+                    </div>
+                </a>
+
+                <!-- 雅菲 -->
+                <a href="game.html?character=ya_fei" class="scene-card group rounded-xl overflow-hidden shadow-lg relative card-hover">
+                    <div class="aspect-square w-full">
+                        <img src="AA/雅菲/封面.jpg" alt="雅菲" class="w-full h-full object-cover transition-transform duration-500 ease-in-out">
+                        <div class="card-overlay">
+                            <h3 class="text-white font-bold text-lg text-center">雅菲</h3>
+                            <p class="text-center text-sm opacity-80 mt-1">即刻进入</p>
+                        </div>
+                    </div>
+                </a>
+
+                <!-- 云韵 -->
+                <a href="game.html?character=yun_yun" class="scene-card group rounded-xl overflow-hidden shadow-lg relative card-hover">
+                    <div class="aspect-square w-full">
+                        <img src="AA/云韵/封面.jpg" alt="云韵" class="w-full h-full object-cover transition-transform duration-500 ease-in-out">
+                        <div class="card-overlay">
+                            <h3 class="text-white font-bold text-lg text-center">云韵</h3>
+                            <p class="text-center text-sm opacity-80 mt-1">即刻进入</p>
+                        </div>
+                    </div>
+                </a>
+                
+            </div>
+        </section>
+    </main>
+
+    <!-- 客服弹窗 -->
+    <div id="kefuModal" class="modal">
+        <div class="modal-content">
+            <i class="fa fa-headset text-5xl text-primary mb-2"></i>
+            <p class="text-xl font-bold mb-2">人工客服</p>
+            <p>本网站唯一客服QQ：3173405776</p>
+            <button class="modal-close mt-6" onclick="hideModal()">确 定</button>
+        </div>
+    </div>
+
+    <script>
+        // 弹窗控制
+        function showModal() {
+            document.getElementById('kefuModal').classList.add('active');
+        }
+        function hideModal() {
+            document.getElementById('kefuModal').classList.remove('active');
+        }
+
+        // 点击弹窗外部关闭（可选）
+        window.addEventListener('click', function(e) {
+            const modal = document.getElementById('kefuModal');
+            if (e.target === modal) {
+                hideModal();
+            }
+        });
+
+        // 波纹效果
+        document.querySelectorAll('.scene-card').forEach(card => {
+            card.addEventListener('click', function(e) {
+                const rect = this.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                const ripple = document.createElement('span');
+                ripple.classList.add('ripple');
+                ripple.style.left = `${x}px`;
+                ripple.style.top = `${y}px`;
+                
+                this.appendChild(ripple);
+                
+                setTimeout(() => {
+                    ripple.remove();
+                }, 600);
+            });
+        });
+
+        // 初始化
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('loading').style.display = 'none';
+                // 显示服务器位置指示器
+                const serverIndicator = document.querySelector('.server-indicator');
+                if (serverIndicator) {
+                    serverIndicator.style.opacity = '1';
+                }
+            }, 1000);
+        });
+
+        // 禁止缩放
+        document.addEventListener('gesturestart', e => e.preventDefault());
+        document.addEventListener('contextmenu', e => e.preventDefault());
+    </script>
+</body>
+</html>
